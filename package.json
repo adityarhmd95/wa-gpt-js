@@ -1,0 +1,21 @@
+{
+  "name": "wa-gpt-js",
+  "version": "1.0.0",
+  "description": "Turn a personal WhatsApp account into an AI assistant with reminders powered by OpenAI GPT-5 Nano.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "chrono-node": "^2.7.6",
+    "dotenv": "^16.4.5",
+    "node-schedule": "^2.1.1",
+    "openai": "^4.60.0",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.25.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}
