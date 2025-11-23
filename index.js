@@ -33,6 +33,17 @@ let targetChatId = null;
 let reminders = loadReminders(REMINDERS_PATH);
 const processedMessageIds = new Set();
 
+const SHORT_KEYWORDS = [
+  'singkat',
+  'ringkas',
+  'to the point',
+  'versi pendek',
+  'tl;dr',
+  'short',
+  'brief',
+  'summary',
+];
+
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
@@ -87,7 +98,6 @@ async function handleIncoming(message, source) {
     console.log('[message] skipped: already processed');
     return;
   }
-
   processedMessageIds.add(message.id._serialized);
 
   if (!targetChatId || chatId !== targetChatId) {
@@ -104,7 +114,7 @@ async function handleIncoming(message, source) {
   const reminderResult = parseReminder(text);
   if (reminderResult) {
     if (reminderResult.error) {
-      const sent = await message.reply(
+      await message.reply(
         `${reminderResult.error}\nContoh: "ingatkan saya besok jam 8 pagi olahraga" atau "remind me tomorrow 8pm call mom".`
       );
       return;
@@ -128,24 +138,36 @@ async function handleIncoming(message, source) {
     scheduleReminder(reminder, sendReminderMessage, () => removeReminder(reminder.id));
 
     const timeLabel = formatDateTime(when);
-    const sent = await message.reply(`Siap, akan diingatkan pada ${timeLabel}.`);
+    await message.reply(`Siap, akan diingatkan pada ${timeLabel}.`);
     return;
   }
 
-  // Fallback to Q&A with OpenAI
+  const shortMode = detectShortMode(text);
+
+  // Optional placeholder so user knows we're working.
+  const thinking = await message.reply('Sedang berpikir, tunggu sebentar...');
+
   try {
     const history = historyStore.getHistory(message.from);
     historyStore.addMessage(message.from, 'user', text);
     const reply = await getAssistantReply({
-      chatId: message.from,
       text,
       history,
+      shortMode,
     });
-    const sent = await message.reply(reply);
+    await message.reply(reply);
     historyStore.addMessage(message.from, 'assistant', reply);
   } catch (err) {
     console.error('Error handling message:', err);
-    const sent = await message.reply('Maaf, terjadi error saat memproses pesan.');
+    await message.reply('Maaf, terjadi error saat memproses pesan.');
+  } finally {
+    if (thinking && typeof thinking.delete === 'function') {
+      try {
+        await thinking.delete(true);
+      } catch (e) {
+        // Best-effort; ignore if deletion fails.
+      }
+    }
   }
 }
 
@@ -195,4 +217,9 @@ function formatDateTime(date) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(date);
+}
+
+function detectShortMode(text) {
+  const lower = text.toLowerCase();
+  return SHORT_KEYWORDS.some((k) => lower.includes(k));
 }
